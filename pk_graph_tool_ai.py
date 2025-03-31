@@ -13,7 +13,7 @@ import os
 # Configuration
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 XAI_API_BASE = "https://api.x.ai/v1"
-DRUGBANK_API_KEY = "YOUR_DRUGBANK_API_KEY"
+DRUGBANK_API_KEY = os.getenv("DRUGBANK_API_KEY")
 DRUGBANK_API_BASE = "https://api.drugbank.com/v1"
 
 
@@ -80,7 +80,7 @@ class PharmacokineticsGraph:
         """Fallback to hardcoded parameters."""
         fallback_params = {
             "metformin": {"Vd": 100, "Ka": 0.5, "Ke": 0.1},
-            "wellbutrin xl": {"Vd": 47, "Ka": 0.4, "Ke": 0.1}
+            "wellbutrin xl": {"Vd": 1750, "Ka": 0.2, "Ke": 0.033}
         }
         return fallback_params.get(drug_name.lower(), {"Vd": 50, "Ka": 0.3, "Ke": 0.08})
 

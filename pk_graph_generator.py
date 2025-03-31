@@ -17,9 +17,9 @@ class PharmacokineticsGraph:
                 "Ke": 0.1,  # Elimination rate constant (h^-1)
             },
             "wellbutrin xl": {
-                "Vd": 47,
-                "Ka": 0.4,
-                "Ke": 0.1
+                "Vd": 1750,
+                "Ka": 0.2,
+                "Ke": 0.033
             }
         }
         self.time_points = np.linspace(0, 24, 100)  # Time from 0 to 24 hours
