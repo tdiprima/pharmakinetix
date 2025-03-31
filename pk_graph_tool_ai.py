@@ -79,7 +79,7 @@ class PharmacokineticsGraph:
     def get_fallback_params(self, drug_name):
         """Fallback to hardcoded parameters."""
         fallback_params = {
-            "metformin": {"Vd": 100, "Ka": 0.5, "Ke": 0.1},
+            "metformin": {"Vd": 100, "Ka": 0.5, "Ke": 0.0693},
             "wellbutrin xl": {"Vd": 1750, "Ka": 0.2, "Ke": 0.033}
         }
         return fallback_params.get(drug_name.lower(), {"Vd": 50, "Ka": 0.3, "Ke": 0.08})

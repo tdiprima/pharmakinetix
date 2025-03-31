@@ -14,7 +14,7 @@ class PharmacokineticsGraph:
             "metformin": {
                 "Vd": 100,  # Volume of distribution (L)
                 "Ka": 0.5,  # Absorption rate constant (h^-1)
-                "Ke": 0.1,  # Elimination rate constant (h^-1)
+                "Ke": 0.0693,  # Elimination rate constant (h^-1)
             },
             "wellbutrin xl": {
                 "Vd": 1750,

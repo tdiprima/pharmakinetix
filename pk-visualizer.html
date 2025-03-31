@@ -40,12 +40,12 @@
     const drugs = {
       "metformin": {
         volumeDistribution: 100, // Vd in liters
-        absorptionRate: 0.5,    // Ka (h^-1)
-        eliminationRate: 0.1,   // Ke (h^-1)
+        absorptionRate: 0.5,     // Ka (h^-1)
+        eliminationRate: 0.0693, // Ke (h^-1)
         label: "Metformin"
       },
       "wellbutrin xl": {
-        volumeDistribution: 1750,  // Vd in liters (approximated for a 70 kg (154 lb) adult, originally 20-47 L/kg)
+        volumeDistribution: 1750, // Vd in liters (approximated for a 70 kg (154 lb) adult, originally 20-47 L/kg)
         absorptionRate: 0.2,      // Ka per hour (based on Tmax of 5 hours for XL)
         eliminationRate: 0.033,   // Ke per hour (based on half-life of 21 hours)
         label: "Wellbutrin XL"
