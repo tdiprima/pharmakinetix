@@ -6,6 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 import json
 
+
 class PharmacokineticsGraph:
     def __init__(self):
         # Default pharmacokinetic parameters for metformin
@@ -14,16 +15,23 @@ class PharmacokineticsGraph:
                 "Vd": 100,  # Volume of distribution (L)
                 "Ka": 0.5,  # Absorption rate constant (h^-1)
                 "Ke": 0.1,  # Elimination rate constant (h^-1)
+            },
+            "wellbutrin xl": {
+                "Vd": 47,
+                "Ka": 0.4,
+                "Ke": 0.1
             }
         }
         self.time_points = np.linspace(0, 24, 100)  # Time from 0 to 24 hours
 
     def calculate_concentration(self, drug, dose):
         """Calculate drug concentration over time using a one-compartment model."""
-        if drug.lower() not in self.drugs:
-            raise ValueError(f"Drug {drug} not found in database.")
+        drug = drug.lower().strip()  # Normalize the drug name to lowercase and remove extra spaces
 
-        params = self.drugs[drug.lower()]
+        if drug not in self.drugs:
+            raise ValueError(f"Drug {drug} not found in database. Available drugs: {list(self.drugs.keys())}")
+
+        params = self.drugs[drug]
         Vd, Ka, Ke = params["Vd"], params["Ka"], params["Ke"]
 
         # Pharmacokinetic equation
@@ -67,15 +75,26 @@ class PharmacokineticsGraph:
         )
         fig.show()
 
+
 def parse_user_input(user_input):
-    """Parse user input like 'show me metformin at 500 mg'."""
+    """Parse user input like 'show me metformin at 500 mg' or 'show me wellbutrin xl at 300 mg'."""
     try:
         parts = user_input.lower().split()
-        if "show" in parts and "at" in parts:
-            drug_index = parts.index("me") + 1
-            dose_index = parts.index("at") + 1
-            drug = parts[drug_index]
-            dose = int(parts[dose_index].replace("mg", ""))
+        if "show" in parts and "me" in parts and "at" in parts:
+            # Find the index of "me" and "at"
+            me_index = parts.index("me")
+            at_index = parts.index("at")
+
+            # Extract the drug name (all words between "me" and "at")
+            drug_words = parts[me_index + 1:at_index]
+            drug = " ".join(drug_words)  # Join words with spaces (e.g., "wellbutrin xl")
+            print(f"Parsed drug name: '{drug}'")  # Debugging: Print the parsed drug
+
+            # Extract the dosage (number before "mg")
+            dose_str = parts[at_index + 1].replace("mg", "").strip()  # Strip any extra spaces
+            dose = int(dose_str)
+            print(f"Parsed dose: {dose}")  # Debugging: Print the parsed dose
+
             return drug, dose
         else:
             raise ValueError("Invalid input format. Use 'show me [drug] at [dose] mg'.")
@@ -83,12 +102,13 @@ def parse_user_input(user_input):
         print(f"Error parsing input: {e}")
         return None, None
 
+
 # Example usage
 if __name__ == "__main__":
     pk_graph = PharmacokineticsGraph()
 
     while True:
-        user_input = input("Enter command (e.g., 'show me metformin at 500 mg') or 'quit' to exit: ")
+        user_input = input("Enter command (e.g., 'show me wellbutrin xl at 300 mg') or 'quit' to exit: ")
         if user_input.lower() == 'quit':
             break
 
@@ -99,8 +119,10 @@ if __name__ == "__main__":
                 pk_graph.plot_graph(drug, dose)
 
                 # Optionally generate JSON for Plotly
-                json_data = pk_graph.generate_plotly_json(drug, dose)
-                print("Plotly JSON data:", json_data)
+                # json_data = pk_graph.generate_plotly_json(drug, dose)
+                # print("Plotly JSON data:", json_data)
 
             except Exception as e:
                 print(f"Error generating graph: {e}")
+        else:
+            print("Could not parse input. Please try again.")
