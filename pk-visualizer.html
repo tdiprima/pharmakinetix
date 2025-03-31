@@ -39,15 +39,15 @@
   <script>
     const drugs = {
       "metformin": {
-        bioavailability: 0.55,
-        halfLife: 6,
-        volumeDistribution: 70,
+        volumeDistribution: 100, // Vd in liters (from Python)
+        absorptionRate: 0.5,    // Ka (h^-1) from Python
+        eliminationRate: 0.1,   // Ke (h^-1) from Python
         label: "Metformin"
       },
       "wellbutrin xl": {
-        bioavailability: 0.80,
-        halfLife: 21,
-        volumeDistribution: 19,
+        volumeDistribution: 47,  // Vd in liters (from Python)
+        absorptionRate: 0.4,    // Ka (h^-1) from Python
+        eliminationRate: 0.1,   // Ke (h^-1) from Python
         label: "Wellbutrin XL"
       }
     };
@@ -63,13 +63,16 @@
     }
 
     function simulatePK(drugData, dose, duration = 48, step = 0.5) {
-      const { bioavailability, halfLife, volumeDistribution } = drugData;
-      const k = Math.log(2) / halfLife;
+      const { volumeDistribution: Vd, absorptionRate: Ka, eliminationRate: Ke } = drugData;
       const conc = [];
       const times = [];
 
       for (let t = 0; t <= duration; t += step) {
-        const c = (dose * bioavailability / volumeDistribution) * Math.exp(-k * t);
+        // Pharmacokinetic equation: C(t) = (Dose * Ka / (Vd * (Ka - Ke))) * (e^(-Ke*t) - e^(-Ka*t))
+        if (Math.abs(Ka - Ke) < 0.001) { // Avoid division by zero
+          Ka += 0.001; // Small adjustment
+        }
+        const c = (dose * Ka / (Vd * (Ka - Ke))) * (Math.exp(-Ke * t) - Math.exp(-Ka * t));
         times.push(t.toFixed(1));
         conc.push(c.toFixed(4));
       }
