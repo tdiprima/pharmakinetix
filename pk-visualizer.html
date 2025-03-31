@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pharmacokinetics Graph Generator</title>
+  <!-- Author: tdiprima -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      background: #f8f8f8;
+    }
+    #graph {
+      margin-top: 2rem;
+    }
+    input {
+      padding: 0.5rem;
+      font-size: 1rem;
+      width: 300px;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pharmacokinetics Visualizer 💊</h1>
+  <p>Try: <em>"Show me metformin at 500 mg"</em> or <em>"Show me wellbutrin xl at 300 mg"</em></p>
+  <input id="query" placeholder="Type your drug and dose..." />
+  <button onclick="generateGraph()">Generate Graph</button>
+
+  <div id="graph"></div>
+
+  <script>
+    const drugs = {
+      "metformin": {
+        bioavailability: 0.55,
+        halfLife: 6,
+        volumeDistribution: 70,
+        label: "Metformin"
+      },
+      "wellbutrin xl": {
+        bioavailability: 0.80,
+        halfLife: 21,
+        volumeDistribution: 19,
+        label: "Wellbutrin XL"
+      }
+    };
+
+    function parseQuery(text) {
+      const regex = /show me ([a-z0-9 ]+) at (\d+)\s*mg/i;
+      const match = text.match(regex);
+      if (!match) return null;
+      return {
+        drugKey: match[1].trim().toLowerCase(),
+        dose: parseFloat(match[2])
+      };
+    }
+
+    function simulatePK(drugData, dose, duration = 48, step = 0.5) {
+      const { bioavailability, halfLife, volumeDistribution } = drugData;
+      const k = Math.log(2) / halfLife;
+      const conc = [];
+      const times = [];
+
+      for (let t = 0; t <= duration; t += step) {
+        const c = (dose * bioavailability / volumeDistribution) * Math.exp(-k * t);
+        times.push(t.toFixed(1));
+        conc.push(c.toFixed(4));
+      }
+
+      return { times, conc };
+    }
+
+    function generateGraph() {
+      const input = document.getElementById("query").value;
+      const parsed = parseQuery(input);
+      if (!parsed || !drugs[parsed.drugKey]) {
+        alert("Could not parse your query. Try 'Show me metformin at 500 mg'");
+        return;
+      }
+
+      const drug = drugs[parsed.drugKey];
+      const { times, conc } = simulatePK(drug, parsed.dose);
+
+      const trace = {
+        x: times,
+        y: conc,
+        mode: 'lines+markers',
+        name: `${drug.label} ${parsed.dose}mg`,
+        hovertemplate:
+          `<b>${drug.label}</b><br>` +
+          `Time: %{x} hr<br>` +
+          `Concentration: %{y} mg/L<extra></extra>`
+      };
+
+      const layout = {
+        title: 'Drug Concentration Over Time',
+        xaxis: { title: 'Time (hours)' },
+        yaxis: { title: 'Concentration (mg/L)' },
+        hovermode: 'closest'
+      };
+
+      Plotly.newPlot('graph', [trace], layout);
+    }
+  </script>
+</body>
+</html>
