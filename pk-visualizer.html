@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <title>Pharmacokinetics Graph Generator</title>
   <!-- Author: tdiprima -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     body {
@@ -12,14 +13,17 @@
       margin: 2rem;
       background: #f8f8f8;
     }
+
     #graph {
       margin-top: 2rem;
     }
+
     input {
       padding: 0.5rem;
       font-size: 1rem;
       width: 300px;
     }
+
     button {
       padding: 0.5rem 1rem;
       font-size: 1rem;
@@ -28,9 +32,10 @@
     }
   </style>
 </head>
+
 <body>
   <h1>Pharmacokinetics Visualizer 💊</h1>
-  <p>Try: <em>"Show me metformin at 500 mg"</em> or <em>"Show me wellbutrin xl at 300 mg"</em></p>
+  <p>Try: <em>"Plot metformin at 500 mg"</em> or <em>"Show me wellbutrin xl at 300 mg"</em></p>
   <input id="query" placeholder="Type your drug and dose..." />
   <button onclick="generateGraph()">Generate Graph</button>
 
@@ -53,7 +58,7 @@
     };
 
     function parseQuery(text) {
-      const regex = /show me ([a-z0-9 ]+) at (\d+)\s*mg/i;
+      const regex = /(?:show me|plot) ([a-z0-9 ]+) at (\d+)\s*mg/i;
       const match = text.match(regex);
       if (!match) return null;
       return {
@@ -62,7 +67,7 @@
       };
     }
 
-    function simulatePK(drugData, dose, duration = 24, step = 0.5) { // Changed default duration to 24
+    function simulatePK(drugData, dose, duration = 24, step = 0.5) {
       const { volumeDistribution: Vd, absorptionRate: Ka, eliminationRate: Ke } = drugData;
       const conc = [];
       const times = [];
@@ -89,7 +94,7 @@
       }
 
       const drug = drugs[parsed.drugKey];
-      const { times, conc } = simulatePK(drug, parsed.dose, 24, 0.5); // Updated duration to 24
+      const { times, conc } = simulatePK(drug, parsed.dose, 24, 0.5);
 
       const trace = {
         x: times,
@@ -111,6 +116,6 @@
 
       Plotly.newPlot('graph', [trace], layout);
     }
-</script>
+  </script>
 </body>
 </html>

@@ -5,6 +5,7 @@ Author: tdiprima
 import numpy as np
 import plotly.graph_objects as go
 import json
+import re
 
 
 class PharmacokineticsGraph:
@@ -77,27 +78,22 @@ class PharmacokineticsGraph:
 
 
 def parse_user_input(user_input):
-    """Parse user input like 'show me metformin at 500 mg' or 'show me wellbutrin xl at 300 mg'."""
+    """
+    Parse user input like 'show me metformin at 500 mg' or 'plot wellbutrin xl at 300 mg'.
+    Returns (drug name, dose) if successful, else (None, None).
+    """
     try:
-        parts = user_input.lower().split()
-        if "show" in parts and "me" in parts and "at" in parts:
-            # Find the index of "me" and "at"
-            me_index = parts.index("me")
-            at_index = parts.index("at")
+        pattern = r"(?:show me|plot) ([a-z0-9 ]+) at (\d+)\s*mg"
+        match = re.search(pattern, user_input.lower())
 
-            # Extract the drug name (all words between "me" and "at")
-            drug_words = parts[me_index + 1:at_index]
-            drug = " ".join(drug_words)  # Join words with spaces (e.g., "wellbutrin xl")
-            print(f"Parsed drug name: '{drug}'")  # Debugging: Print the parsed drug
-
-            # Extract the dosage (number before "mg")
-            dose_str = parts[at_index + 1].replace("mg", "").strip()  # Strip any extra spaces
-            dose = int(dose_str)
-            print(f"Parsed dose: {dose}")  # Debugging: Print the parsed dose
-
+        if match:
+            drug = match.group(1).strip()
+            dose = int(match.group(2))
+            print(f"Parsed drug name: '{drug}'")   # Debugging: Print the parsed drug
+            print(f"Parsed dose: {dose}")          # Debugging: Print the parsed dose
             return drug, dose
         else:
-            raise ValueError("Invalid input format. Use 'show me [drug] at [dose] mg'.")
+            raise ValueError("Invalid input format. Use 'show me [drug] at [dose] mg' or 'plot [drug] at [dose] mg'.")
     except Exception as e:
         print(f"Error parsing input: {e}")
         return None, None

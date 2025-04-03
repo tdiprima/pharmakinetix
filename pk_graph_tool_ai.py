@@ -28,7 +28,7 @@ class PharmacokineticsGraph:
             response = self.openai_client.chat.completions.create(
                 model="grok-beta",
                 messages=[
-                    {"role": "system", "content": "You are a highly precise assistant designed to parse drug and dosage commands. When given an input like 'show me [drug] at [dose] mg', extract the drug name and dosage, and return ONLY a JSON object with the fields 'drug', 'dosage', and 'unit'. Do not include any additional text, explanations, or formatting. Example output for 'show me metformin at 500 mg': {'drug': 'metformin', 'dosage': 500, 'unit': 'mg'}.  Do not return \"```\" or \"```json\"."},
+                    {"role": "system", "content": "You are a highly precise assistant designed to parse drug and dosage commands. When given an input like 'show me [drug] at [dose] mg' or 'plot [drug] at [dose] mg', extract the drug name and dosage, and return ONLY a JSON object with the fields 'drug', 'dosage', and 'unit'. Do not include any additional text, explanations, or formatting. Example output for 'show me metformin at 500 mg': {'drug': 'metformin', 'dosage': 500, 'unit': 'mg'}.  Do not return \"```\" or \"```json\"."},
                     {"role": "user", "content": user_input}
                 ],
                 temperature=0.1,
