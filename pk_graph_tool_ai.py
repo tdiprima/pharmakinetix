@@ -1,11 +1,10 @@
 """
-Integrates pharmacokinetics graphing tool with Grok and optionally the DrugBank API for retrieving pharmacokinetic parameters.
+Integrates pharmacokinetics graphing tool with Grok for retrieving pharmacokinetic parameters.
 Author: tdiprima
 """
 import numpy as np
 import plotly.graph_objects as go
 import json
-import requests
 import re
 from openai import OpenAI
 import os
@@ -13,8 +12,8 @@ import os
 # Configuration
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 XAI_API_BASE = "https://api.x.ai/v1"
-DRUGBANK_API_KEY = os.getenv("DRUGBANK_API_KEY")
-DRUGBANK_API_BASE = "https://api.drugbank.com/v1"
+
+ALLOWED_UNITS = {"mg", "ug", "µg"}
 
 
 class PharmacokineticsGraph:
@@ -23,16 +22,27 @@ class PharmacokineticsGraph:
         self.openai_client = OpenAI(api_key=XAI_API_KEY, base_url=XAI_API_BASE)
 
     def parse_input_with_grok(self, user_input):
-        """Parse user input using Grok API."""
+        """Use Grok to extract dosage/unit and infer Vd, Ka, ke."""
         try:
             response = self.openai_client.chat.completions.create(
                 model="grok-beta",
                 messages=[
-                    {"role": "system", "content": "You are a highly precise assistant designed to parse drug and dosage commands. When given an input like 'show me [drug] at [dose] mg' or 'plot [drug] at [dose] mg', extract the drug name and dosage, and return ONLY a JSON object with the fields 'drug', 'dosage', and 'unit'. Do not include any additional text, explanations, or formatting. Example output for 'show me metformin at 500 mg': {'drug': 'metformin', 'dosage': 500, 'unit': 'mg'}.  Do not return \"```\" or \"```json\"."},
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a pharmacokinetics assistant. When given a prompt like "
+                            "'show me the graph for 500 mg metformin' or 'simulate 5 mg lorazepam', "
+                            "you must: 1) Identify the drug name and dosage, 2) Get the "
+                            "pharmacokinetic parameters: Vd (in L), Ka (in h^-1), and ke (in h^-1) using "
+                            "common knowledge or trained data. Then return ONLY a JSON object with "
+                            "fields: Vd, Ka, ke, dosage, unit, and drug. Do not include any explanations or formatting. "
+                            "Example: {\"drug\": \"metformin\", \"Vd\": 60, \"Ka\": 1.2, \"ke\": 0.1, \"dosage\": 500, \"unit\": \"mg\"}"
+                        )
+                    },
                     {"role": "user", "content": user_input}
                 ],
-                temperature=0.1,
-                max_tokens=100
+                temperature=0.2,
+                max_tokens=150
             )
             raw_response = response.choices[0].message.content
             print(f"Raw Grok response: {raw_response}")
@@ -42,13 +52,11 @@ class PharmacokineticsGraph:
 
             try:
                 result = json.loads(raw_response)
-                return result
+                return self.validate_and_convert_input(result)
             except json.JSONDecodeError:
-                print(f"Failed to parse as JSON. Raw response: {raw_response}")
-                # json_match = re.search(r'\{.*\}', raw_response, re.DOTALL)  # greedy match
-                json_match = re.search(r'\{[^}]*\}', raw_response, re.DOTALL)  # safer and more specific
+                json_match = re.search(r'\{[^}]*\}', raw_response, re.DOTALL)
                 if json_match:
-                    return json.loads(json_match.group())
+                    return self.validate_and_convert_input(json.loads(json_match.group()))
                 else:
                     raise ValueError(f"Grok returned invalid format: {raw_response}")
 
@@ -56,126 +64,58 @@ class PharmacokineticsGraph:
             print(f"Error parsing with Grok: {e}")
             return None
 
-    def get_drug_params_from_drugbank(self, drug_name):
-        """Fetch pharmacokinetic parameters from DrugBank API."""
+    def validate_and_convert_input(self, data):
+        """Validate extracted fields and normalize units."""
         try:
-            url = f"{DRUGBANK_API_BASE}/drugs"
-            headers = {"Authorization": f"Bearer {DRUGBANK_API_KEY}"}
-            params = {"name": drug_name.lower()}
+            Vd = float(data["Vd"])
+            Ka = float(data["Ka"])
+            ke = float(data["ke"])
+            dosage = float(data["dosage"])
+            unit = data["unit"].lower()
+            drug = data.get("drug", "the drug").capitalize()
 
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
+            if unit not in ALLOWED_UNITS:
+                raise ValueError(f"Unsupported unit: {unit}")
 
-            data = response.json()
-            return {
-                "Vd": data.get("volume_of_distribution", 50),
-                "Ka": data.get("absorption_rate_constant", 0.3),
-                "Ke": data.get("elimination_rate_constant", 0.08)
-            }
+            if unit in {"ug", "µg"}:
+                dosage = dosage / 1000  # convert to mg
+                unit = "mg"
+
+            if Vd <= 0 or Ka <= 0 or ke <= 0 or dosage <= 0:
+                raise ValueError("All values must be positive numbers.")
+
+            return {"Vd": Vd, "Ka": Ka, "ke": ke, "dosage": dosage, "unit": unit, "drug": drug}
         except Exception as e:
-            print(f"Error fetching from DrugBank: {e}")
-            return self.get_fallback_params(drug_name)
+            print(f"Validation error: {e}")
+            return None
 
-    def get_fallback_params(self, drug_name):
-        """Fallback to hardcoded parameters."""
-        fallback_params = {
-            "metformin": {"Vd": 100, "Ka": 0.5, "Ke": 0.0693},
-            "wellbutrin xl": {"Vd": 1750, "Ka": 0.2, "Ke": 0.033}
-        }
-        return fallback_params.get(drug_name.lower(), {"Vd": 50, "Ka": 0.3, "Ke": 0.08})
+    def simulate_concentration(self, dosage, Vd, Ka, ke):
+        """Simulate drug concentration over time using a one-compartment model."""
+        t = self.time_points
+        concentration = (dosage * Ka) / (Vd * (Ka - ke)) * (np.exp(-ke * t) - np.exp(-Ka * t))
+        return concentration
 
-    def calculate_concentration(self, drug, dose):
-        params = self.get_drug_params_from_drugbank(drug)
-        Vd, Ka, Ke = params["Vd"], params["Ka"], params["Ke"]
-
-        if Ka == Ke:
-            Ka += 0.001
-        concentration = (dose * Ka / (Vd * (Ka - Ke))) * (np.exp(-Ke * self.time_points) - np.exp(-Ka * self.time_points))
-        return self.time_points, concentration
-
-    def generate_plotly_json(self, drug, dose):
-        time, conc = self.calculate_concentration(drug, dose)
-
-        data = {
-            "data": [{
-                "type": "scatter",
-                "mode": "lines",
-                "name": f"{drug} {dose}mg",
-                "x": time.tolist(),
-                "y": conc.tolist(),
-                "line": {"color": "blue", "width": 2}
-            }],
-            "layout": {
-                "title": f"Pharmacokinetics of {drug} (Dose: {dose} mg)",
-                "xaxis": {"title": "Time (hours)"},
-                "yaxis": {"title": "Concentration (mg/L)"},
-                "template": "plotly_white"
-            }
-        }
-
-        return json.dumps(data)
-
-    def plot_graph(self, drug, dose):
-        time, conc = self.calculate_concentration(drug, dose)
-
+    def plot_graph(self, concentration, drug_name):
+        """Generate a plotly graph of drug concentration over time."""
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=time, y=conc, mode='lines', name=f"{drug} {dose}mg", line=dict(color='blue', width=2)))
-        fig.update_layout(
-            title=f"Pharmacokinetics of {drug} (Dose: {dose} mg)",
-            xaxis_title="Time (hours)",
-            yaxis_title="Concentration (mg/L)",
-            template="plotly_white"
-        )
+        fig.add_trace(go.Scatter(x=self.time_points, y=concentration, mode='lines', name='Concentration'))
+        fig.update_layout(title=f'{drug_name} Concentration vs. Time',
+                          xaxis_title='Time (hours)',
+                          yaxis_title='Concentration (mg/L)')
         fig.show()
 
 
-def test_regex():
-    test_string = '{"drug": "metformin", "dosage": 500, "unit": "mg"}'
-    match = re.search(r'\{[^}]*\}', test_string, re.DOTALL)
-    assert match is not None, "Regex should match JSON"
-    assert json.loads(match.group()) == {"drug": "metformin", "dosage": 500, "unit": "mg"}, "Parsed JSON should be correct"
-
-
-def main():
-    pk_graph = PharmacokineticsGraph()
-
-    while True:
-        user_input = input("Enter command (e.g., 'show me wellbutrin xl at 300 mg') or 'quit' to exit: ")
-        if user_input.lower() == 'quit':
-            break
-
-        try:
-            # First, try Grok
-            parsed_data = pk_graph.parse_input_with_grok(user_input)
-            if not parsed_data:
-                print("Falling back to manual parsing...")
-                parts = user_input.lower().split()
-                if "show" in parts and "me" in parts and "at" in parts:
-                    drug_start = parts.index("me") + 1
-                    dose_end = parts.index("at")
-                    drug = " ".join(parts[drug_start:dose_end])
-                    dose_str = parts[dose_end + 1].replace("mg", "").strip()
-                    dose = int(dose_str) if dose_str.isdigit() else 0
-                    parsed_data = {"drug": drug, "dosage": dose, "unit": "mg"}
-                else:
-                    raise ValueError("Could not parse input. Please use format 'show me [drug] at [dose] mg'.")
-
-            drug = parsed_data["drug"]
-            dose = parsed_data["dosage"]
-
-            print(f"Parsed drug: '{drug}', Parsed dose: {dose}")
-
-            # Generate and display the graph
-            pk_graph.plot_graph(drug, dose)
-
-            # Optionally generate JSON for Plotly
-            # json_data = pk_graph.generate_plotly_json(drug, dose)
-            # print("Plotly JSON data:", json_data)
-
-        except Exception as e:
-            print(f"Error: {e}")
-
-
 if __name__ == "__main__":
-    main()
-    # test_regex()
+    pk = PharmacokineticsGraph()
+    user_input = input("Enter your drug request (e.g., '500 mg metformin'): ")
+    parsed = pk.parse_input_with_grok(user_input)
+    if parsed:
+        concentration = pk.simulate_concentration(
+            dosage=parsed["dosage"],
+            Vd=parsed["Vd"],
+            Ka=parsed["Ka"],
+            ke=parsed["ke"]
+        )
+        pk.plot_graph(concentration, drug_name=parsed["drug"])
+    else:
+        print("Failed to parse or validate input.")
