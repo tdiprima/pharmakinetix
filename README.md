@@ -12,7 +12,7 @@ This is the front-end, a standalone HTML/JS tool. It works in the browser and do
 
 ---
 
-## Example prompts:
+## 🔬 Example prompts:
 * show me 500 mg of metformin
 * simulate 10 mg diazepam
 * plot 100 µg fentanyl
@@ -23,6 +23,11 @@ This is the front-end, a standalone HTML/JS tool. It works in the browser and do
 
 <!-- plot drug absorption -->
 <!-- simulate concentration -->
+
+### ⚠️ **Error Cases The Guardrails Catch**
+
+- `simulate 500 bananas` → ❌ invalid drug
+- `simulate 5 grams of caffeine` → ❌ unsupported unit: grams
 
 ---
 
