@@ -107,15 +107,20 @@ class PharmacokineticsGraph:
 
 if __name__ == "__main__":
     pk = PharmacokineticsGraph()
-    user_input = input("Enter your drug request (e.g., '500 mg metformin'): ")
-    parsed = pk.parse_input_with_grok(user_input)
-    if parsed:
-        concentration = pk.simulate_concentration(
-            dosage=parsed["dosage"],
-            Vd=parsed["Vd"],
-            Ka=parsed["Ka"],
-            ke=parsed["ke"]
-        )
-        pk.plot_graph(concentration, drug_name=parsed["drug"])
-    else:
-        print("Failed to parse or validate input.")
+
+    while True:
+        user_input = input("Enter your drug request (e.g., '500 mg metformin') or 'quit' to exit: ")
+        if user_input.lower() == 'quit':
+            break
+
+        parsed = pk.parse_input_with_grok(user_input)
+        if parsed:
+            concentration = pk.simulate_concentration(
+                dosage=parsed["dosage"],
+                Vd=parsed["Vd"],
+                Ka=parsed["Ka"],
+                ke=parsed["ke"]
+            )
+            pk.plot_graph(concentration, drug_name=parsed["drug"])
+        else:
+            print("Failed to parse or validate input.")
